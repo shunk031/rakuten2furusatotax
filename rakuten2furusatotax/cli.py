@@ -14,6 +14,20 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def create_driver(disable_headless: bool) -> WebDriver:
+    options = webdriver.ChromeOptions()
+    if not disable_headless:
+        options.add_argument("--headless")
+
+    executable_path = ChromeDriverManager().install()
+    logger.info(f"Executable path: {executable_path}")
+
+    chrome_service = service.Service(executable_path=executable_path)
+    driver = webdriver.Chrome(service=chrome_service, options=options)
+
+    return driver
+
+
 def login_rakuten(
     driver: WebDriver,
     login_id: str,
@@ -61,15 +75,7 @@ def run(
     furusato_tax_password: str,
     disable_headless: bool,
 ):
-    options = webdriver.ChromeOptions()
-    if not disable_headless:
-        options.add_argument("--headless")
-
-    executable_path = ChromeDriverManager().install()
-    logger.info(f"Executable path: {executable_path}")
-
-    chrome_service = service.Service(executable_path=executable_path)
-    driver = webdriver.Chrome(service=chrome_service, options=options)
+    driver = create_driver()
 
     # driver = login_rakuten(
     #     driver=driver,
