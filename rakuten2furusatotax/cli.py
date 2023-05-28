@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 
 def login_rakuten(
     driver: WebDriver,
-    rakuten_login_id: str,
-    rakuten_password: str,
+    login_id: str,
+    password: str,
 ) -> WebDriver:
     # ログインページへアクセス
     driver.get("https://grp02.id.rakuten.co.jp/rms/nid/login")
@@ -26,8 +26,8 @@ def login_rakuten(
     driver.execute_script('document.formLang1.lang.value = "ja"')
     driver.execute_script("document.formLang1.submit();")
 
-    driver.find_element(By.ID, "loginInner_u").send_keys(rakuten_login_id)
-    driver.find_element(By.ID, "loginInner_p").send_keys(rakuten_password)
+    driver.find_element(By.ID, "loginInner_u").send_keys(login_id)
+    driver.find_element(By.ID, "loginInner_p").send_keys(password)
     driver.find_element(By.CLASS_NAME, "loginButton").click()
 
     driver.find_element(By.CLASS_NAME, "submit").find_element(
@@ -40,13 +40,25 @@ def login_rakuten(
     return driver
 
 
+def login_furusato_tax(driver: WebDriver, login_id: str, password: str) -> WebDriver:
+    driver.get("https://www.furusato-tax.jp/login")
+    driver.find_element(By.CLASS_NAME, "frm-input").send_keys(login_id)
+    driver.find_element(By.CLASS_NAME, "frm-pass__input").send_keys(password)
+    driver.find_element(By.CLASS_NAME, "btn-positive").click()
+    return driver
+
+
 @click.command()
 @click.option("--rakuten-login-id", type=str, required=True)
 @click.option("--rakuten-password", type=str, required=True)
+@click.option("--furusato-tax-login-id", type=str, required=True)
+@click.option("--furusato-tax-password", type=str, required=True)
 @click.option("--disable-headless", is_flag=True, default=False)
 def run(
     rakuten_login_id: str,
     rakuten_password: str,
+    furusato_tax_login_id: str,
+    furusato_tax_password: str,
     disable_headless: bool,
 ):
     options = webdriver.ChromeOptions()
@@ -59,10 +71,16 @@ def run(
     chrome_service = service.Service(executable_path=executable_path)
     driver = webdriver.Chrome(service=chrome_service, options=options)
 
-    driver = login_rakuten(
-        driver=driver,
-        rakuten_login_id=rakuten_login_id,
-        rakuten_password=rakuten_password,
-    )
+    # driver = login_rakuten(
+    #     driver=driver,
+    #     login_id=rakuten_login_id,
+    #     password=rakuten_password,
+    # )
+
+    # driver = login_furusato_tax(
+    #     driver=driver,
+    #     login_id=furusato_tax_login_id,
+    #     password=furusato_tax_password,
+    # )
 
     breakpoint()
