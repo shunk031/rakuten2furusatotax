@@ -1,11 +1,18 @@
 import logging
-
+import datetime
 import click
+import re
+from typing import Optional
 from selenium import webdriver
 from selenium.webdriver.chrome import service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.support.select import Select
+from dataclasses import dataclass
+from rakuten2furusatotax.rakuten import login_rakuten
+from rakuten2furusatotax.furusato_tax import login_furusato_tax
+import time
 
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s", level=logging.INFO
@@ -32,38 +39,28 @@ def create_driver(disable_headless: bool) -> WebDriver:
     return driver
 
 
-def login_rakuten(
-    driver: WebDriver,
-    login_id: str,
-    password: str,
-) -> WebDriver:
-    # ログインページへアクセス
-    driver.get("https://grp02.id.rakuten.co.jp/rms/nid/login")
+@dataclass
+class FurusatoTaxInfo(object):
+    application_date: datetime.datetime
+    municipality_name: str
+    donation_price: int
+    prefecture: Optional[str] = None
+    municipalities: Optional[str] = None
 
-    # 日本語にする
-    driver.execute_script('document.formLang1.lang.value = "ja"')
-    driver.execute_script("document.formLang1.submit();")
+    def __post_init__(self) -> None:
+        matches = re.match(r"(.+?[都道府県])(.+?[市区町村])", self.municipality_name)
+        if matches:
+            groups = matches.groups()
+            assert (
+                len(groups) == 2
+            ), f"{self.municipality_name} という入力から正しく自治体情報を抽出することができませんでした。(抽出結果: {groups})"
 
-    driver.find_element(By.ID, "loginInner_u").send_keys(login_id)
-    driver.find_element(By.ID, "loginInner_p").send_keys(password)
-    driver.find_element(By.CLASS_NAME, "loginButton").click()
-
-    driver.find_element(By.CLASS_NAME, "submit").find_element(
-        By.TAG_NAME, "input"
-    ).click()
-    driver.find_element(By.CLASS_NAME, "submit").find_element(
-        By.TAG_NAME, "input"
-    ).click()
-
-    return driver
-
-
-def login_furusato_tax(driver: WebDriver, login_id: str, password: str) -> WebDriver:
-    driver.get("https://www.furusato-tax.jp/login")
-    driver.find_element(By.CLASS_NAME, "frm-input").send_keys(login_id)
-    driver.find_element(By.CLASS_NAME, "frm-pass__input").send_keys(password)
-    driver.find_element(By.CLASS_NAME, "btn-positive").click()
-    return driver
+            self.prefecture = groups[0]
+            self.municipalities = groups[1]
+        else:
+            raise ValueError(
+                f'"{self.municipality_name}" という入力から正しく自治体情報を抽出することができませんでした。'
+            )
 
 
 @click.command()
@@ -79,18 +76,95 @@ def run(
     furusato_tax_password: str,
     disable_headless: bool,
 ):
-    # driver = create_driver()
+    driver = create_driver(
+        disable_headless=disable_headless,
+    )
+    driver = login_rakuten(
+        driver=driver,
+        login_id=rakuten_login_id,
+        password=rakuten_password,
+    )
 
-    # driver = login_rakuten(
-    #     driver=driver,
-    #     login_id=rakuten_login_id,
-    #     password=rakuten_password,
-    # )
+    driver.get("https://order.my.rakuten.co.jp/?l-id=pc_header_func_ph")
+    current_year = datetime.date.today().year
+    select_year_dropdown = driver.find_element(By.ID, "selectPeriodYear")
+    select = Select(select_year_dropdown)
 
-    # driver = login_furusato_tax(
-    #     driver=driver,
-    #     login_id=furusato_tax_login_id,
-    #     password=furusato_tax_password,
-    # )
+    select.select_by_value(str(current_year))
+    # select.select_by_value("2022")
 
-    breakpoint()
+    order_list_wrap_div = driver.find_element(By.ID, "oDrListWrap")
+    order_list_items = order_list_wrap_div.find_elements(By.CLASS_NAME, "oDrListItem")
+
+    furusato_tax_info_list = []
+    for order_list_item in order_list_items:
+        item_name_tag = order_list_item.find_element(By.CLASS_NAME, "itemName")
+
+        if item_name_tag.text.startswith("【ふるさと納税】"):
+            purchase_date_tag = order_list_item.find_element(
+                By.CLASS_NAME, "purchaseDate"
+            )
+            purchase_date = datetime.datetime.strptime(
+                purchase_date_tag.text, "%Y年%m月%d日"
+            )
+
+            shop_name_tag = order_list_item.find_element(By.CLASS_NAME, "shopName")
+            shop_name = shop_name_tag.text
+
+            price_tag = order_list_item.find_element(By.CLASS_NAME, "price")
+            price = int(price_tag.text.replace(",", ""))
+
+            furusato_tax_info = FurusatoTaxInfo(
+                application_date=purchase_date,
+                municipality_name=shop_name,
+                donation_price=price,
+            )
+            logger.info(furusato_tax_info)
+            furusato_tax_info_list.append(furusato_tax_info)
+
+    driver = login_furusato_tax(
+        driver=driver,
+        login_id=furusato_tax_login_id,
+        password=furusato_tax_password,
+    )
+
+    for furusato_tax_info in furusato_tax_info_list:
+        driver.get("https://www.furusato-tax.jp/mypage/contribution/history/list")
+        driver.find_element(By.LINK_TEXT, "寄付履歴を手動追加").click()
+
+        select_year_dropdown = driver.find_element(
+            By.XPATH, "//select[@class='form_entry _year']"
+        )
+        select = Select(select_year_dropdown)
+        select.select_by_value(str(furusato_tax_info.application_date.year))
+
+        select_month_dropdown = driver.find_element(
+            By.XPATH, "//select[@class='form_entry _month']"
+        )
+        select = Select(select_month_dropdown)
+        select.select_by_value(str(furusato_tax_info.application_date.month))
+
+        select_day_dropdown = driver.find_element(
+            By.XPATH, "//select[@class='form_entry _day']"
+        )
+        select = Select(select_day_dropdown)
+        select.select_by_value(str(furusato_tax_info.application_date.day))
+
+        select_prefecture_dropdown = driver.find_element(By.ID, "prefecture_id")
+        select = Select(select_prefecture_dropdown)
+        select.select_by_visible_text(furusato_tax_info.prefecture)
+        time.sleep(1)
+
+        select_city_dropdown = driver.find_element(By.ID, "cities")
+        select = Select(select_city_dropdown)
+        select.select_by_visible_text(furusato_tax_info.municipalities)
+
+        driver.find_element(
+            By.XPATH, "//input[@name='donation_amount_comma']"
+        ).send_keys(str(furusato_tax_info.donation_price))
+
+        # 確定ボタンを押す
+        driver.find_element(By.CLASS_NAME, "btn-positive__text").click()
+
+        # 寄付履歴へ戻る
+        driver.find_element(By.LINK_TEXT, "寄付履歴へ").click()
