@@ -11,7 +11,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v2
 
@@ -52,6 +52,11 @@ jobs:
             --cache-dir=/dev/null
       
       - name: Run tests
-        run: |
+      env:
+          RAKUTEN_LOGIN_ID: ${{ secrets.RAKUTEN_LOGIN_ID }}
+          RAKUTEN_PASSWORD: ${{ secrets.RAKUTEN_PASSWORD }}
+          FURUSATO_TAX_LOGIN_ID: ${{ secrets.FURUSATO_TAX_LOGIN_ID }}
+          FURUSATO_TAX_PASSWORD: ${{ secrets.FURUSATO_TAX_PASSWORD }}
+      run: |
           pip install pytest
           pytest --color=yes -rf --log-cli-level=INFO
