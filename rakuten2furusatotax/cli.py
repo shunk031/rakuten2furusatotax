@@ -16,8 +16,12 @@ logger = logging.getLogger(__name__)
 
 def create_driver(disable_headless: bool) -> WebDriver:
     options = webdriver.ChromeOptions()
+    options.add_argument("--disable-dev-shm-usage")
+
     if not disable_headless:
         options.add_argument("--headless")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--no-sandbox")
 
     executable_path = ChromeDriverManager().install()
     logger.info(f"Executable path: {executable_path}")
@@ -75,7 +79,7 @@ def run(
     furusato_tax_password: str,
     disable_headless: bool,
 ):
-    driver = create_driver()
+    # driver = create_driver()
 
     # driver = login_rakuten(
     #     driver=driver,
