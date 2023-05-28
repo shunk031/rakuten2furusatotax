@@ -9,7 +9,7 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.select import Select
 
-from rakuten2furusatotax.rakuten import login_rakuten
+from rakuten2furusatotax.rakuten import login_rakuten, get_furusato_tax_info_list
 from rakuten2furusatotax.furusato_tax import login_furusato_tax
 from rakuten2furusatotax.furusato_tax_info import FurusatoTaxInfo
 import time
@@ -60,8 +60,7 @@ def run(
         login_id=rakuten_login_id,
         password=rakuten_password,
     )
-
-    driver = get_furusato_tax_info_list(driver)
+    furusato_tax_info_list = get_furusato_tax_info_list(driver)
 
     driver = login_furusato_tax(
         driver=driver,

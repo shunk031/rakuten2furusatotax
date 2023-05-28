@@ -1,8 +1,15 @@
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.common.by import By
+import datetime
+from selenium.webdriver.support.select import Select
+from rakuten2furusatotax.furusato_tax_info import FurusatoTaxInfo
+from typing import List
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-def get_furusato_tax_info_list(driver: WebDriver) -> WebDriver:
+def get_furusato_tax_info_list(driver: WebDriver) -> List[FurusatoTaxInfo]:
     driver.get("https://order.my.rakuten.co.jp/?l-id=pc_header_func_ph")
     current_year = datetime.date.today().year
     select_year_dropdown = driver.find_element(By.ID, "selectPeriodYear")
