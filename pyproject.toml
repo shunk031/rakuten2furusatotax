@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "rakuten2furusatotax"
+version = "0.1.0"
+description = ""
+authors = ["Shunsuke KITADA <shunsuke.kitada.0831@gmail.com>"]
+readme = "README.md"
+packages = [{ include = "rakuten2furusatotax" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+selenium = "^4.9.1"
+webdriver-manager = "^3.8.6"
+click = "^8.1.3"
+
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.0.270"
+black = "^23.3.0"
+mypy = "^1.3.0"
+pytest = "^7.3.1"
+
+[tool.poetry.scripts]
+rakuten2furusatotax = "rakuten2furusatotax.cli:run"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
